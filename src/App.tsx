@@ -13,6 +13,7 @@ export function App() {
   const { data: paginatedTransactions, ...paginatedTransactionsUtils } = usePaginatedTransactions()
   const { data: transactionsByEmployee, ...transactionsByEmployeeUtils } = useTransactionsByEmployee()
   const [isLoading, setIsLoading] = useState(false)
+  const [showViewMore, setShowViewMore] = useState(true)
 
   const transactions = useMemo(
     () => paginatedTransactions?.data ?? transactionsByEmployee ?? null,
@@ -24,18 +25,24 @@ export function App() {
     transactionsByEmployeeUtils.invalidateData()
 
     await employeeUtils.fetchAll()
-    await paginatedTransactionsUtils.fetchAll()
-
     setIsLoading(false)
+    await paginatedTransactionsUtils.fetchAll()
   }, [employeeUtils, paginatedTransactionsUtils, transactionsByEmployeeUtils])
 
   const loadTransactionsByEmployee = useCallback(
     async (employeeId: string) => {
       paginatedTransactionsUtils.invalidateData()
       await transactionsByEmployeeUtils.fetchById(employeeId)
+      setShowViewMore(false)
     },
     [paginatedTransactionsUtils, transactionsByEmployeeUtils]
   )
+
+  useEffect(() => {
+    if (paginatedTransactions?.nextPage === null && !!paginatedTransactions?.data) {
+      setShowViewMore(false)
+    }
+  }, [paginatedTransactions])
 
   useEffect(() => {
     if (employees === null && !employeeUtils.loading) {
@@ -65,6 +72,12 @@ export function App() {
               return
             }
 
+            if (newValue.firstName === "All" && newValue.lastName === "Employees") {
+              loadAllTransactions()
+              setShowViewMore(true)
+              return
+            }
+
             await loadTransactionsByEmployee(newValue.id)
           }}
         />
@@ -74,7 +87,7 @@ export function App() {
         <div className="RampGrid">
           <Transactions transactions={transactions} />
 
-          {transactions !== null && (
+          {transactions !== null && showViewMore && (
             <button
               className="RampButton"
               disabled={paginatedTransactionsUtils.loading}
